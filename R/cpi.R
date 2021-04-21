@@ -11,6 +11,7 @@
 #' @param B Number of permutations for Fisher permutation test.
 #' @param alpha Significance level for confidence intervals.
 #' @param x_tilde Knockoff matrix. If not given (the default), it will be created with \link{create.second_order}.
+#' @param knockoff_sampler Knockoff sampler used to create knockoff variables, either "gaussian" or "fixed".
 #' @param verbose Verbose output of resampling procedure.
 #' @param cores Number CPU cores used.
 #'
@@ -64,6 +65,7 @@ cpi <- function(task, learner,
                 B = 10000,
                 alpha = 0.05, 
                 x_tilde = NULL,
+                knockoff_sampler = "gaussian"
                 verbose = FALSE, 
                 cores = 1) {
   if (is.null(measure)) {
@@ -118,12 +120,26 @@ cpi <- function(task, learner,
   err_full <- compute_loss(pred_full, measure)
   
   # Generate knockoff data
+ 
   if (is.null(x_tilde)) {
-    if (is.null(test_data)) {
+    if (knockoff_sampler == "gaussian"){
+      if (is.null(test_data)) {
       x_tilde <- knockoff::create.second_order(as.matrix(getTaskData(task)[, getTaskFeatureNames(task)]))
-    } else {
+      } else {
       test_data_x_tilde <- knockoff::create.second_order(as.matrix(test_data[, getTaskFeatureNames(task)]))
-    }
+    }}
+    else if  (knockoff_sampler == "fixed"){
+      if (is.null(test_data)) { # fixed knockoffs get drawn from normalized input matrix and the output is then in that scale
+        # the normalization procedure is scaling column values by their norms (s.t. column length is 1)
+        # we save the norm values and rescale the give knockoff matrix s.t. it matches the original input scale --> is that valid?
+        original_scale <- norm(as.matrix(getTaskData(task)[, getTaskFeatureNames(task)]), type = "f")
+        x_tilde_unscaled <- knockoff::create.fixed(as.matrix(getTaskData(task)[, getTaskFeatureNames(task)]))$Xk
+        x_tilde <- sapply(1:ncol(x_tilde_unscaled), function(i){x_tilde_unscaled[,i] * original_scale[i]})
+      } else {
+        original_scale <- norm(as.matrix(test_data[, getTaskFeatureNames(task)]), type = "f")
+        test_data_x_tilde_unscaled <- knockoff::create.fixed(as.matrix(test_data[, getTaskFeatureNames(task)]))$Xk
+        test_data_x_tilde <- sapply(1:ncol(test_data_x_tilde_unscaled), function(i){test_data_x_tilde_unscaled[,i] * original_scale[i]})
+      }
   } else if (is.matrix(x_tilde)) {
     if (is.null(test_data)) {
       if (any(dim(x_tilde) != dim(as.matrix(getTaskData(task)[, getTaskFeatureNames(task)])))) {
