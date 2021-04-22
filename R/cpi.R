@@ -65,7 +65,7 @@ cpi <- function(task, learner,
                 B = 10000,
                 alpha = 0.05, 
                 x_tilde = NULL,
-                knockoff_sampler = "gaussian"
+                knockoff_sampler = "gaussian",
                 verbose = FALSE, 
                 cores = 1) {
   if (is.null(measure)) {
@@ -127,20 +127,22 @@ cpi <- function(task, learner,
       x_tilde <- knockoff::create.second_order(as.matrix(getTaskData(task)[, getTaskFeatureNames(task)]))
       } else {
       test_data_x_tilde <- knockoff::create.second_order(as.matrix(test_data[, getTaskFeatureNames(task)]))
-    }}
+      }
+      }
     else if  (knockoff_sampler == "fixed"){
       if (is.null(test_data)) { # fixed knockoffs get drawn from normalized input matrix and the output is then in that scale
         # the normalization procedure is scaling column values by their norms (s.t. column length is 1)
         # we save the norm values and rescale the give knockoff matrix s.t. it matches the original input scale --> is that valid?
-        original_scale <- norm(as.matrix(getTaskData(task)[, getTaskFeatureNames(task)]), type = "f")
+        original_scale <- apply(as.matrix(getTaskData(task)[, getTaskFeatureNames(task)]), 2, function(x){norm(matrix(x), type = "f")})
         x_tilde_unscaled <- knockoff::create.fixed(as.matrix(getTaskData(task)[, getTaskFeatureNames(task)]))$Xk
-        x_tilde <- sapply(1:ncol(x_tilde_unscaled), function(i){x_tilde_unscaled[,i] * original_scale[i]})
+        x_tilde <- sweep(x_tilde_unscaled, 2, original_scale, FUN = "*" )
       } else {
-        original_scale <- norm(as.matrix(test_data[, getTaskFeatureNames(task)]), type = "f")
+        original_scale <- apply(as.matrix(test_data[, getTaskFeatureNames(task)]), 2, function(x){norm(matrix(x), type = "f")})
         test_data_x_tilde_unscaled <- knockoff::create.fixed(as.matrix(test_data[, getTaskFeatureNames(task)]))$Xk
-        test_data_x_tilde <- sapply(1:ncol(test_data_x_tilde_unscaled), function(i){test_data_x_tilde_unscaled[,i] * original_scale[i]})
+        test_data_x_tilde <- sweep(ttest_data_x_tilde_unscaled, 2, original_scale, FUN = "*" )
       }
-  } else if (is.matrix(x_tilde)) {
+      }
+    } else if (is.matrix(x_tilde)) {
     if (is.null(test_data)) {
       if (any(dim(x_tilde) != dim(as.matrix(getTaskData(task)[, getTaskFeatureNames(task)])))) {
         stop("Size of 'x_tilde' must match dimensions of data.")
