@@ -139,7 +139,7 @@ cpi <- function(task, learner,
       } else {
         original_scale <- apply(as.matrix(test_data[, getTaskFeatureNames(task)]), 2, function(x){norm(matrix(x), type = "f")})
         test_data_x_tilde_unscaled <- knockoff::create.fixed(as.matrix(test_data[, getTaskFeatureNames(task)]))$Xk
-        test_data_x_tilde <- sweep(ttest_data_x_tilde_unscaled, 2, original_scale, FUN = "*" )
+        test_data_x_tilde <- sweep(test_data_x_tilde_unscaled, 2, original_scale, FUN = "*" )
       }
       }
     } else if (is.matrix(x_tilde)) {
